@@ -33,6 +33,18 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
+// Middleware for verifying JWT
+const authenticateToken = (req, res, next) => {
+  const token = req.headers["authorization"];
+  if (!token) return res.status(401).json({ message: "Access Denied" });
+
+  jwt.verify(token, process.env.JWT_TOKEN, (err, user) => {
+    if (err) return res.status(403).json({ message: "Invalid Token" });
+    req.user = user; // Attach user info to the request
+    next();
+  });
+};
+
 // Register User
 app.post("/api/register", async (req, res) => {
   const { username, name, email, password } = req.body;
@@ -72,6 +84,17 @@ app.post("/api/login", async (req, res) => {
 app.get("/api/users", async (req, res) => {
   const users = await TestingModel.find();
   res.json(users);
+});
+
+// Get Logged-in User Details
+app.get("/api/users/me", authenticateToken, async (req, res) => {
+  try {
+    const user = await TestingModel.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 // Update User
